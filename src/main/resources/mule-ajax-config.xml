@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+    xmlns:ajax="http://www.mulesoft.org/schema/mule/ajax"
+    xsi:schemaLocation="
+            http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+            http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+            http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/3.3/mule-jms.xsd
+            http://www.mulesoft.org/schema/mule/ajax http://www.mulesoft.org/schema/mule/ajax/current/mule-ajax.xsd
+            ">
+
+    <jms:activemq-connector name="activeMQ-Embedded" specification="1.1" />
+
+    <http:connector name="httpServer1" />
+    <http:connector name="httpServer2" />
+
+    <ajax:connector name="ajaxServer"
+        serverUrl="http://0.0.0.0:8090/mule/ajaxServer?connector=httpServer1"/>
+
+    <flow name="dynamicJmsBridge">
+        <jms:inbound-endpoint queue="public.%3E" />
+         <set-variable variableName="targetChannel"
+                       value="#[message.inboundProperties.JMSDestination.queueName.replace('.','/').substring(6)]" />
+        <ajax:outbound-endpoint channel="#[variable:targetChannel]" />
+    </flow>
+
+    <flow name="footballScoresValueGenerator">
+        <poll frequency="3000">
+            <set-payload value="Some Football Score"/>
+        </poll>
+        <jms:outbound-endpoint queue="public.football.scores" />
+    </flow>
+
+    <!-- Generates other events to demonstrate they're not routed to the /football/scores endpoint -->
+    <flow name="financialNewsValueGenerator">
+        <poll frequency="3000">
+                <set-payload value="Some Financial News"/>
+        </poll>
+        <jms:outbound-endpoint queue="public.financial.news" />
+    </flow>
+</mule>

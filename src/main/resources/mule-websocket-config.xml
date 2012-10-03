@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:http="http://www.mulesoft.org/schema/mule/nio-http"
+    xmlns:mxml="http://www.mulesoft.org/schema/mule/xml"
+    xmlns:esper="http://www.mulesoft.org/schema/mule/esper"
+    xmlns:spring="http://www.springframework.org/schema/beans"
+    xsi:schemaLocation="
+            http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+            http://www.mulesoft.org/schema/mule/nio-http http://www.mulesoft.org/schema/mule/nio-http/current/mule-nio-http.xsd
+            http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/3.3/mule-xml.xsd
+            http://www.mulesoft.org/schema/mule/esper http://www.mulesoft.org/schema/mule/esper/current/mule-esper.xsd
+            http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+            ">
+
+    <http:connector name="httpConnector" />
+
+    <esper:config name="esperModule" configuration="esper-config.xml" />
+
+    <mxml:dom-to-xml-transformer name="domToXmlTransformer" />
+
+    <flow name="websocket-esper-bridge">
+        <http:inbound-endpoint address="niohttp://localhost:8080/websocket/events"
+            exchange-pattern="one-way">
+            <http:websocket path="events" />
+        </http:inbound-endpoint>
+        <custom-processor
+            class="com.mulesoft.demo.mule.websocket.EsperWebSocketUpdateListener">
+            <spring:property name="esperModule" ref="esperModule" />
+            <spring:property name="httpConnector" ref="httpConnector" />
+            <spring:property name="domToXmlTransformer" ref="domToXmlTransformer" />
+        </custom-processor>
+    </flow>
+
+    <flow name="signupEventsGenerator">
+        <poll frequency="3000">
+            <set-payload value="&lt;signup id='fake' /&gt;"/>
+        </poll>
+
+        <mxml:xml-to-dom-transformer returnClass="org.w3c.dom.Document" />
+        <esper:send eventName="SignupEvent" eventPayload-ref="#[message.payload]" />
+    </flow>
+</mule>
